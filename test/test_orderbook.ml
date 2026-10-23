@@ -2,7 +2,8 @@ open Orderbook
 
 let print_best book =
   let show = function Some p -> string_of_int p | None -> "none" in
-  Printf.printf "best_bid=%s best_ask=%s\n" (show (best_bid book))
+  Printf.printf "best_bid=%s best_ask=%s\n"
+    (show (best_bid book))
     (show (best_ask book))
 
 let print_trades trades =
@@ -30,7 +31,8 @@ let%expect_test "orders on both sides that don't cross" =
   ignore (add_limit book Sell ~price:102 ~qty:6);
   print_book book;
   print_best book;
-  [%expect {|
+  [%expect
+    {|
     ASK 102 x 6
     ASK 101 x 2
     BID 99 x 3
@@ -58,7 +60,8 @@ let%expect_test "full fill empties the book" =
   print_trades trades;
   print_book book;
   print_best book;
-  [%expect {|
+  [%expect
+    {|
     TRADE buy=2 sell=1 5@100
     best_bid=none best_ask=none
     |}]
@@ -105,7 +108,8 @@ let%expect_test "buy sweeps several ask levels up to its limit" =
   let _, trades = add_limit book Buy ~price:101 ~qty:5 in
   print_trades trades;
   print_book book;
-  [%expect {|
+  [%expect
+    {|
     TRADE buy=4 sell=1 2@100
     TRADE buy=4 sell=2 2@101
     ASK 102 x 2
@@ -127,7 +131,8 @@ let%expect_test "no cross: bid below best ask just rests" =
   print_trades trades;
   print_book book;
   print_best book;
-  [%expect {|
+  [%expect
+    {|
     ASK 100 x 1
     BID 99 x 1
     best_bid=99 best_ask=100
@@ -163,7 +168,8 @@ let%expect_test "cancelling the only order at a price removes the level" =
   Printf.printf "cancel=%b\n" (cancel book id);
   print_book book;
   print_best book;
-  [%expect {|
+  [%expect
+    {|
     cancel=true
     ASK 101 x 1
     best_bid=none best_ask=101
@@ -209,7 +215,8 @@ let%expect_test "invalid input raises Invalid_argument" =
   try_add Sell ~price:0 ~qty:5;
   try_add Buy ~price:100 ~qty:(-1);
   print_book book;
-  [%expect {|
+  [%expect
+    {|
     add_limit: price and qty must be positive
     add_limit: price and qty must be positive
     add_limit: price and qty must be positive

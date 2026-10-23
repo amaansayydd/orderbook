@@ -3,8 +3,8 @@ type side = Buy | Sell
 type order = {
   id : int;
   side : side;
-  price : int;               (* integer ticks, e.g. 10150 = 101.50 *)
-  mutable remaining : int;   (* goes down as the order fills *)
+  price : int; (* integer ticks, e.g. 10150 = 101.50 *)
+  mutable remaining : int; (* goes down as the order fills *)
 }
 
 type trade = { buy_id : int; sell_id : int; fill_price : int; fill_qty : int }
@@ -12,13 +12,19 @@ type trade = { buy_id : int; sell_id : int; fill_price : int; fill_qty : int }
 module IntMap = Map.Make (Int)
 
 type book = {
-  mutable bids : order Queue.t IntMap.t;   (* price -> orders in arrival order *)
+  mutable bids : order Queue.t IntMap.t; (* price -> orders in arrival order *)
   mutable asks : order Queue.t IntMap.t;
-  index : (int, order) Hashtbl.t;          (* order id -> order, for cancels *)
+  index : (int, order) Hashtbl.t; (* order id -> order, for cancels *)
   mutable next_id : int;
 }
+
 let create () =
-  { bids = IntMap.empty; asks = IntMap.empty; index = Hashtbl.create 16; next_id = 1 }
+  {
+    bids = IntMap.empty;
+    asks = IntMap.empty;
+    index = Hashtbl.create 16;
+    next_id = 1;
+  }
 
 let get_side book side = match side with Buy -> book.bids | Sell -> book.asks
 
@@ -35,7 +41,7 @@ let best_ask book =
   | Some (price, _) -> Some price
   | None -> None
 
-(* Put an order at the back of the queue for its price, creating the level if needed. *)
+(* Add an order to the back of its price level, creating the level if needed. *)
 let rest_order book order =
   let levels = get_side book order.side in
   let q =
@@ -86,7 +92,8 @@ let rec match_incoming book incoming trades =
           Hashtbl.remove book.index resting.id;
           if Queue.is_empty q then
             let other = opposite incoming.side in
-            set_side book other (IntMap.remove level_price (get_side book other))
+            set_side book other
+              (IntMap.remove level_price (get_side book other))
         end;
         match_incoming book incoming (trade :: trades)
 
@@ -107,7 +114,9 @@ let cancel book id =
   | Some order ->
       let levels = get_side book order.side in
       let q = IntMap.find order.price levels in
-      let rest = Queue.of_seq (Seq.filter (fun o -> o.id <> id) (Queue.to_seq q)) in
+      let rest =
+        Queue.of_seq (Seq.filter (fun o -> o.id <> id) (Queue.to_seq q))
+      in
       let levels =
         if Queue.is_empty rest then IntMap.remove order.price levels
         else IntMap.add order.price rest levels
