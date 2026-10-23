@@ -100,6 +100,22 @@ let add_limit book side ~price ~qty =
   if order.remaining > 0 then rest_order book order;
   (id, trades)
 
+(* O(k) in the number of orders at the cancelled order's price. *)
+let cancel book id =
+  match Hashtbl.find_opt book.index id with
+  | None -> false
+  | Some order ->
+      let levels = get_side book order.side in
+      let q = IntMap.find order.price levels in
+      let rest = Queue.of_seq (Seq.filter (fun o -> o.id <> id) (Queue.to_seq q)) in
+      let levels =
+        if Queue.is_empty rest then IntMap.remove order.price levels
+        else IntMap.add order.price rest levels
+      in
+      set_side book order.side levels;
+      Hashtbl.remove book.index id;
+      true
+
 let print_level label (price, q) =
   let total = Queue.fold (fun acc o -> acc + o.remaining) 0 q in
   Printf.printf "%s %d x %d\n" label price total

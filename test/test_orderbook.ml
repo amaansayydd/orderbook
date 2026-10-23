@@ -144,3 +144,73 @@ let%expect_test "sell hits the highest bid first" =
     TRADE buy=2 sell=3 1@100
     BID 99 x 1
     |}]
+
+let%expect_test "cancel a live order" =
+  let book = create () in
+  let id, _ = add_limit book Buy ~price:100 ~qty:5 in
+  ignore (add_limit book Buy ~price:100 ~qty:3);
+  Printf.printf "cancel=%b\n" (cancel book id);
+  print_book book;
+  [%expect {|
+    cancel=true
+    BID 100 x 3
+    |}]
+
+let%expect_test "cancelling the only order at a price removes the level" =
+  let book = create () in
+  ignore (add_limit book Sell ~price:101 ~qty:1);
+  let id, _ = add_limit book Sell ~price:100 ~qty:1 in
+  Printf.printf "cancel=%b\n" (cancel book id);
+  print_book book;
+  print_best book;
+  [%expect {|
+    cancel=true
+    ASK 101 x 1
+    best_bid=none best_ask=101
+    |}]
+
+let%expect_test "cancel unknown id, or the same id twice" =
+  let book = create () in
+  let id, _ = add_limit book Buy ~price:100 ~qty:1 in
+  Printf.printf "unknown=%b\n" (cancel book 42);
+  Printf.printf "first=%b\n" (cancel book id);
+  Printf.printf "second=%b\n" (cancel book id);
+  [%expect {|
+    unknown=false
+    first=true
+    second=false
+    |}]
+
+let%expect_test "cancelling a fully filled order returns false" =
+  let book = create () in
+  let id, _ = add_limit book Sell ~price:100 ~qty:2 in
+  ignore (add_limit book Buy ~price:100 ~qty:2);
+  Printf.printf "cancel=%b\n" (cancel book id);
+  [%expect {| cancel=false |}]
+
+let%expect_test "after a cancel, the next order in line trades" =
+  let book = create () in
+  let first, _ = add_limit book Sell ~price:100 ~qty:2 in
+  ignore (add_limit book Sell ~price:100 ~qty:2);
+  ignore (cancel book first);
+  let _, trades = add_limit book Buy ~price:100 ~qty:2 in
+  print_trades trades;
+  print_book book;
+  [%expect {| TRADE buy=3 sell=2 2@100 |}]
+
+let%expect_test "invalid input raises Invalid_argument" =
+  let book = create () in
+  let try_add side ~price ~qty =
+    match add_limit book side ~price ~qty with
+    | exception Invalid_argument msg -> print_endline msg
+    | _ -> print_endline "no error"
+  in
+  try_add Buy ~price:100 ~qty:0;
+  try_add Sell ~price:0 ~qty:5;
+  try_add Buy ~price:100 ~qty:(-1);
+  print_book book;
+  [%expect {|
+    add_limit: price and qty must be positive
+    add_limit: price and qty must be positive
+    add_limit: price and qty must be positive
+    |}]
