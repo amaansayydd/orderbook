@@ -1,0 +1,5 @@
+(library
+ (name orderbook_tests)
+ (libraries orderbook)
+ (inline_tests)
+ (preprocess (pps ppx_expect)))
